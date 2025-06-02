@@ -1,0 +1,29 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/floors/protos/RectangleArena.proto"
+EXTERNPROTO "../protos/Mavic2Pro.proto"
+
+WorldInfo {
+}
+Viewpoint {
+  orientation -0.14377211103892304 0.37024844067580953 0.9177394359318679 0.8005715145775743
+  position -2.891851768547344 -2.6313130950654786 1.30945763119833
+  follow "Mavic 2 PRO"
+}
+TexturedBackground {
+}
+TexturedBackgroundLight {
+}
+RectangleArena {
+  floorSize 50 50
+}
+Mavic2Pro {
+  hidden position_0_0 5.4328524722137565e-09
+  hidden position_5_0 -1.2624247964336492e-08
+  hidden position_6_0 -4.796078993981258e-09
+  translation -0.005199960143957613 -2.948205383698242e-07 0.06557250626189944
+  rotation 6.366042113690525e-05 -0.9999999979628996 -4.642362602269789e-06 0.0701130410172974
+  controller "quadController"
+}

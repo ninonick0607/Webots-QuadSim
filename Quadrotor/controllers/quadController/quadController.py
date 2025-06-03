@@ -66,7 +66,6 @@ def draw_axes(display_dev, x, y, width, height, min_val, max_val, tick_count=5):
         label = str(xx - x)
         display_dev.drawText(label, xx - (len(label)*6)//2, y + height + 2)
 
-
 def draw_two_series_with_axes(display_dev, hist1, hist2, x, y, width, height,
                               color1, color2, min_val, max_val, label,
                               tick_count=5):
@@ -140,7 +139,7 @@ def main():
 
     # Plotting parameters
     MAX_HISTORY_POINTS = plot_width
-    GRAPH_COUNT = 3
+    GRAPH_COUNT = 4
     PLOT_HEIGHT_PER_GRAPH = plot_height // GRAPH_COUNT
 
     # Histories for desired vs actual
@@ -150,11 +149,13 @@ def main():
     roll_actual_history = deque(maxlen=MAX_HISTORY_POINTS)
     pitch_desired_history = deque(maxlen=MAX_HISTORY_POINTS)
     pitch_actual_history = deque(maxlen=MAX_HISTORY_POINTS)
+    yaw_desired_history = deque(maxlen=MAX_HISTORY_POINTS)
+    yaw_actual_history  = deque(maxlen=MAX_HISTORY_POINTS)
 
     # --- System Constants ---
     MASS_KG = 0.5069
     GRAVITY_MPS2 = 9.81
-    HOVER_THRUST_TOTAL_N = (MASS_KG * GRAVITY_MPS2)/4
+    HOVER_THRUST_TOTAL_N = (MASS_KG * GRAVITY_MPS2)/4 # Gives thrust to each motor 
 
     THRUST_CONSTANT_CT = 0.00026    # N/(rad/s)^2
     TORQUE_CONSTANT_CTAU = 0.0000052 # Nm/(rad/s)^2
@@ -203,26 +204,25 @@ def main():
     MIN_THRUST_PER_MOTOR_N = 0.0
 
     # --- PID Gains ---
-    ALTITUDE_KP, ALTITUDE_KI, ALTITUDE_KD =1.5,0.5,1
-
-    PITCH_KP, PITCH_KI, PITCH_KD =0.4,0.8,0.1
-
+    ALTITUDE_KP, ALTITUDE_KI, ALTITUDE_KD =1.7,0.65,1.2
+    
+    PITCH_KP, PITCH_KI, PITCH_KD =0.3,0.8,0.15
+    
     ROLL_KP, ROLL_KI, ROLL_KD = 1, 2, 0.3
     
-    YAW_KP, YAW_KI, YAW_KD = 0, 0, 0
+    YAW_KP, YAW_KI, YAW_KD = 0.5,0,0.7
 
-# '''
-# Gains To Test
-#     ALTITUDE_KP, ALTITUDE_KI, ALTITUDE_KD = 1.,0.5,0.7
-#     PITCH_KP, PITCH_KI, PITCH_KD = 1.5,0.5,0.1
-#     ROLL_KP, ROLL_KI, ROLL_KD = 1,0.5,0.6
-#     YAW_KP, YAW_KI, YAW_KD = 0, 0, 0
-    # ALTITUDE_KP, ALTITUDE_KI, ALTITUDE_KD = 1.5,0.5,1
-    # PITCH_KP, PITCH_KI, PITCH_KD = 0.5,0.5,0.1
-    # ROLL_KP, ROLL_KI, ROLL_KD = 0.5,0.5,0.1
-    # YAW_KP, YAW_KI, YAW_KD = 0, 0, 0
-
-# '''
+# ------ Gains to Test ------
+# 
+#     ALTITUDE_KP, ALTITUDE_KI, ALTITUDE_KD =1.5,0.5,1
+#
+#     PITCH_KP, PITCH_KI, PITCH_KD =0.4,0.8,0.1
+#
+#     ROLL_KP, ROLL_KI, ROLL_KD = 1, 2, 0.3
+# 
+# 
+# 
+# # ===============================
 
     altitude_pid = PID(kp=ALTITUDE_KP, ki=ALTITUDE_KI, kd=ALTITUDE_KD)
     pitch_pid = PID(kp=PITCH_KP, ki=PITCH_KI, kd=PITCH_KD)
@@ -242,18 +242,16 @@ def main():
     keyboard = Keyboard(); keyboard.enable(TIME_STEP_MS)
 
     target_altitude_m = 1.0 
-
+    target_yaw_rad = imu.getRollPitchYaw()[2]
     while robot.step(TIME_STEP_MS) != -1:
         # --- Get Sensor Data ---
         roll_pitch_yaw_rad = imu.getRollPitchYaw() # Webots: Roll, Pitch, Yaw
         actual_roll_rad = roll_pitch_yaw_rad[0]   # Positive = right wing down
         actual_pitch_rad = roll_pitch_yaw_rad[1]  # Positive = nose up
-        
+        actual_yaw_rad = roll_pitch_yaw_rad[2]
+
         gps_values_m = gps.getValues()
         actual_altitude_m = gps_values_m[2]
-
-        gyro_values_rad_s = gyro.getValues() # Webots: X=roll_rate, Y=pitch_rate, Z=yaw_rate
-        actual_yaw_rate_rad_s = gyro_values_rad_s[2] # Positive yaw rate = CCW/Left (matches our M3)
 
         # --- Keyboard Input for Control Targets ---
         # M1 (Pitch moment) positive = nose up.
@@ -273,7 +271,7 @@ def main():
             key = keyboard.getKey()
         
         MAX_ROLL_PITCH_TARGET_ANGLE_DEG = 10.0
-        MAX_YAW_RATE_TARGET_DEG_S = 45.0
+        MAX_YAW_RATE_TARGET_DEG_S = 45
         ALTITUDE_CHANGE_SPEED_MPS = 0.5
 
         target_altitude_m += alt_input_scaled * ALTITUDE_CHANGE_SPEED_MPS * DT_S
@@ -281,8 +279,14 @@ def main():
 
         target_pitch_angle_rad = pitch_input_scaled * math.radians(MAX_ROLL_PITCH_TARGET_ANGLE_DEG)
         target_roll_angle_rad = roll_input_scaled * math.radians(MAX_ROLL_PITCH_TARGET_ANGLE_DEG)
-        target_yaw_rate_rad_s = yaw_input_scaled * math.radians(MAX_YAW_RATE_TARGET_DEG_S)
         
+        YAW_RATE_SPEED_RAD_S = math.radians(MAX_YAW_RATE_TARGET_DEG_S)
+        target_yaw_rad += yaw_input_scaled * YAW_RATE_SPEED_RAD_S * DT_S
+        if target_yaw_rad >  math.pi:
+            target_yaw_rad -= 2 * math.pi
+        elif target_yaw_rad < -math.pi:
+            target_yaw_rad += 2 * math.pi
+            
         # Append desired vs actual to histories
         altitude_desired_history.append(target_altitude_m)
         altitude_actual_history.append(actual_altitude_m)
@@ -290,22 +294,22 @@ def main():
         roll_actual_history.append(actual_roll_rad)
         pitch_desired_history.append(target_pitch_angle_rad)
         pitch_actual_history.append(actual_pitch_rad)
-
+        yaw_desired_history.append(target_yaw_rad)
+        yaw_actual_history.append(actual_yaw_rad)
         # --- PID Control ---
         altitude_thrust_correction_N = altitude_pid.update(target_altitude_m, actual_altitude_m, DT_S)
         M1_pitch_Nm = pitch_pid.update(target_pitch_angle_rad, actual_pitch_rad, DT_S)
         M2_roll_Nm = roll_pid.update(target_roll_angle_rad, actual_roll_rad, DT_S)
-        M3_yaw_Nm = yaw_rate_pid.update(target_yaw_rate_rad_s, actual_yaw_rate_rad_s, DT_S)
+        M3_yaw_Nm = yaw_rate_pid.update(target_yaw_rad, actual_yaw_rad, DT_S)
 
         # --- Calculate Total Desired Thrust and Apply Mixer ---
-        #f_cmd_N = altitude_thrust_correction_N
         f_cmd_N = HOVER_THRUST_TOTAL_N + altitude_thrust_correction_N
 
         # Mixer Inputs: f_cmd_N, M1_pitch_Nm, M2_roll_Nm, M3_yaw_Nm
-        F1_N = CLAMP(((DR*sin_theta_R*f_cmd_N-M1_pitch_Nm)/(den_y_eff)) - ((GAMMA_DRAG_THRUST_RATIO*M2_roll_Nm+DR*cos_theta_R*M3_yaw_Nm)/(den_x_eff)),MIN_THRUST_PER_MOTOR_N,MAX_THRUST_PER_MOTOR_N)
-        F2_N = CLAMP(((DF*sin_theta_F*f_cmd_N+M1_pitch_Nm)/(den_y_eff)) + ((GAMMA_DRAG_THRUST_RATIO*M2_roll_Nm-DF*cos_theta_R*M3_yaw_Nm)/(den_x_eff)),MIN_THRUST_PER_MOTOR_N,MAX_THRUST_PER_MOTOR_N)
-        F3_N = CLAMP(((DR*sin_theta_R*f_cmd_N-M1_pitch_Nm)/(den_y_eff)) + ((GAMMA_DRAG_THRUST_RATIO*M2_roll_Nm+DR*cos_theta_R*M3_yaw_Nm)/(den_x_eff)),MIN_THRUST_PER_MOTOR_N,MAX_THRUST_PER_MOTOR_N)
-        F4_N = CLAMP(((DF*sin_theta_F*f_cmd_N+M1_pitch_Nm)/(den_y_eff)) - ((GAMMA_DRAG_THRUST_RATIO*M2_roll_Nm-DF*cos_theta_R*M3_yaw_Nm)/(den_x_eff)),MIN_THRUST_PER_MOTOR_N,MAX_THRUST_PER_MOTOR_N)
+        F1_N = CLAMP(((DR*sin_theta_R*f_cmd_N-M1_pitch_Nm)/(den_y_eff)) - ((GAMMA_DRAG_THRUST_RATIO*M2_roll_Nm-DR*cos_theta_R*M3_yaw_Nm)/(den_x_eff)),MIN_THRUST_PER_MOTOR_N,MAX_THRUST_PER_MOTOR_N)
+        F2_N = CLAMP(((DF*sin_theta_F*f_cmd_N+M1_pitch_Nm)/(den_y_eff)) + ((GAMMA_DRAG_THRUST_RATIO*M2_roll_Nm+DF*cos_theta_R*M3_yaw_Nm)/(den_x_eff)),MIN_THRUST_PER_MOTOR_N,MAX_THRUST_PER_MOTOR_N)
+        F3_N = CLAMP(((DR*sin_theta_R*f_cmd_N-M1_pitch_Nm)/(den_y_eff)) + ((GAMMA_DRAG_THRUST_RATIO*M2_roll_Nm-DR*cos_theta_R*M3_yaw_Nm)/(den_x_eff)),MIN_THRUST_PER_MOTOR_N,MAX_THRUST_PER_MOTOR_N)
+        F4_N = CLAMP(((DF*sin_theta_F*f_cmd_N+M1_pitch_Nm)/(den_y_eff)) - ((GAMMA_DRAG_THRUST_RATIO*M2_roll_Nm+DF*cos_theta_R*M3_yaw_Nm)/(den_x_eff)),MIN_THRUST_PER_MOTOR_N,MAX_THRUST_PER_MOTOR_N)
 
         motor_target_thrusts_N = [F1_N, F2_N, F3_N, F4_N] # Order: FR, BL, FL, BR
 
@@ -415,6 +419,30 @@ def main():
             min_pitch,
             max_pitch,
             "Pitch (rad)",
+            tick_count=5
+        )
+        all_yaw = list(yaw_desired_history) + list(yaw_actual_history)
+        if all_yaw:
+            min_yaw = min(all_yaw)
+            max_yaw = max(all_yaw)
+            if abs(max_yaw - min_yaw) < 1e-6:
+                max_yaw = min_yaw + 1e-3
+        else:
+            min_yaw, max_yaw = -0.5, 0.5  # choose a default range
+
+        draw_two_series_with_axes(
+            plot_display,
+            yaw_desired_history,
+            yaw_actual_history,
+            0,
+            3 * PLOT_HEIGHT_PER_GRAPH,
+            plot_width,
+            PLOT_HEIGHT_PER_GRAPH,
+            0xFFFF00,  # desired=yellow
+            0xFF00FF,  # actual=magenta (for contrast)
+            min_yaw,
+            max_yaw,
+            "Yaw Rate (rad/s)",
             tick_count=5
         )
 

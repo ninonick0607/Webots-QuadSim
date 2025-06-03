@@ -9,4 +9,4 @@ orthographicViewHeight: 1
 textFiles: 0 "protos/Mavic2Pro.proto"
 consoles: Console:All:All
 renderingDevicePerspectives: Mavic 2 PRO:camera;0;0.63;0;0
-renderingDevicePerspectives: Mavic 2 PRO:display;1;1.04297;0;0.112706
+renderingDevicePerspectives: Mavic 2 PRO:display;0;0.957031;0;0.122651;1920;37;960;1043;0

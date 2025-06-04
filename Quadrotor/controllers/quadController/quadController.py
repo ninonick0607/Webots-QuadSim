@@ -137,7 +137,7 @@ def main():
     
     altitude_pid = PID(kp=1.7, ki=0.65, kd=1.2)
     pitch_pid = PID(kp=0.3, ki=0.8, kd=0.15)
-    roll_pid = PID(kp=1, ki=0.5, kd=0.3)
+    roll_pid = PID(kp=1, ki=0.1, kd=0.7)
     yaw_rate_pid = PID(kp=0.0, ki=0, kd=0.0)
     
     motor_device_names = ["front right propeller", "rear left propeller", "front left propeller", "rear right propeller"]
